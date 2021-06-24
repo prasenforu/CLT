@@ -52,7 +52,7 @@ mc mb minio/logging --insecure
 mc mb minio/tracing --insecure
 
 # Clone Git
-https://github.com/prasenforu/CLT.git
+git clone https://github.com/prasenforu/CLT.git
 
 # Kubernetes Cluster Creation
 
