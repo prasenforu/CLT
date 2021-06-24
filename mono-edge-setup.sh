@@ -37,7 +37,7 @@ mv ./kubectl /usr/bin/kubectl
 echo "alias oc=/usr/bin/kubectl" >> /root/.bash_profile
 
 # Clone Git
-git clone https://github.com/cloudcafetech/observability.git
+git clone https://github.com/prasenforu/CLT.git
 
 # Kubernetes Cluster Creation
 
@@ -77,31 +77,28 @@ chmod 700 get_helm.sh
 ./get_helm.sh
 
 # Install Ingress
-kubectl apply -f https://raw.githubusercontent.com/cloudcafetech/observability/main/kube-kind-ingress.yaml
+kubectl apply -f https://raw.githubusercontent.com/prasenforu/CLT/main/kube-kind-ingress.yaml
 kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
 kubectl delete ValidatingWebhookConfiguration ingress-nginx-admission
 sleep 15
 kubectl delete job.batch/ingress-nginx-admission-patch -n kube-router
 
-# Setup Metric Server
-#kubectl apply -f https://raw.githubusercontent.com/cloudcafetech/kubesetup/master/monitoring/metric-server.yaml
-
 # Files edit
 PUB=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
-find ./observability/ -type f -exec sed -i -e "s/172.31.14.138/$INGIP/g" {} \;
-find ./observability/ -type f -exec sed -i -e "s/3.16.154.209/$PUB/g" {} \;
+find ./CLT/ -type f -exec sed -i -e "s/172.31.14.138/$INGIP/g" {} \;
+find ./CLT/ -type f -exec sed -i -e "s/3.16.154.209/$PUB/g" {} \;
 
 # Agent Deployment
 kubectl create ns monitoring
-kubectl create -f observability/single/02-kube-state-metrics.yaml -n monitoring
-kubectl create -f observability/single/02-node-exporter.yaml -n monitoring
-sed -i "s/kube-one/$CLUSTER/g" observability/single/agent.yaml
-kubectl create -f observability/single/agent.yaml -n monitoring
+kubectl create -f CLT/single/02-kube-state-metrics.yaml -n monitoring
+kubectl create -f CLT/single/02-node-exporter.yaml -n monitoring
+sed -i "s/kube-one/$CLUSTER/g" CLT/single/agent.yaml
+kubectl create -f CLT/single/agent.yaml -n monitoring
 
 # Demo App Deployment
 kubectl create ns demo
-kubectl create -f observability/single/hotrod.yaml -n hotrod
-kubectl create -f observability/demo/mongo-employee.yaml -n demo
+kubectl create -f CLT/single/hotrod.yaml -n hotrod
+kubectl create -f CLT/demo/mongo-employee.yaml -n demo
 
 # Install Krew
 set -x; cd "$(mktemp -d)" &&
