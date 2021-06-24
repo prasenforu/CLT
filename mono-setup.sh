@@ -52,7 +52,7 @@ mc mb minio/logging --insecure
 mc mb minio/tracing --insecure
 
 # Clone Git
-git clone https://github.com/cloudcafetech/observability.git
+https://github.com/prasenforu/CLT.git
 
 # Kubernetes Cluster Creation
 
@@ -93,14 +93,11 @@ chmod 700 get_helm.sh
 ./get_helm.sh
 
 # Install Ingress
-kubectl apply -f https://raw.githubusercontent.com/cloudcafetech/observability/main/kube-kind-ingress.yaml
+kubectl apply -f https://raw.githubusercontent.com/prasenforu/CLT/main/kube-kind-ingress.yaml
 kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
 kubectl delete ValidatingWebhookConfiguration ingress-nginx-admission
 sleep 15
 kubectl delete job.batch/ingress-nginx-admission-patch -n kube-router
-
-# Setup Metric Server
-#kubectl apply -f https://raw.githubusercontent.com/cloudcafetech/kubesetup/master/monitoring/metric-server.yaml
 
 # Setup Certificate & Password for Ingress
 cat <<EOF > req.conf
@@ -113,9 +110,9 @@ CN = $HIP.nip.io
 [v3_req]
 subjectAltName = @alt_names
 [alt_names]
-DNS.1 = nginx.$HIP.nip.io
+DNS.1 = cortex.$HIP.nip.io
 DNS.2 = loki.$HIP.nip.io
-DNS.3 = grafanaclient.$HIP.nip.io
+DNS.3 = tempo.$HIP.nip.io
 EOF
 
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes -config req.conf -keyout nip.key -out nip.crt
@@ -123,8 +120,8 @@ openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes -config req.conf -k
 # Modify files for setup observability
 HIP=`ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1`
 PUB=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
-find ./observability/ -type f -exec sed -i -e "s/172.31.14.138/$HIP/g" {} \;
-find ./observability/ -type f -exec sed -i -e "s/3.16.154.209/$PUB/g" {} \;
+find ./CLT/ -type f -exec sed -i -e "s/172.31.14.138/$HIP/g" {} \;
+find ./CLT/ -type f -exec sed -i -e "s/3.16.154.209/$PUB/g" {} \;
 
 # Create namespaces
 kubectl create ns monitoring
@@ -133,8 +130,8 @@ kubectl create ns monitoring
 kubectl create secret tls nip-tls --cert=nip.crt --key=nip.key -n monitoring
 
 # Deployment Observability
-sed -i "s/kube-one/$CLUSTER/g" observability/single/agent.yaml
-kubectl create -f observability/single/. -n monitoring
+sed -i "s/kube-one/$CLUSTER/g" CLT/single/agent.yaml
+kubectl create -f CLT/single/. -n monitoring
 
 # Install Krew
 set -x; cd "$(mktemp -d)" &&
