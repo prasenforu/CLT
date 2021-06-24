@@ -1,0 +1,258 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tempo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/name: tempo
+  name: tempo
+data:
+  overrides.yaml: |
+    overrides: {}
+  tempo-query.yaml: |
+    backend: 127.0.0.1:3100
+  tempo.yaml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+      grpc_server_max_recv_msg_size: 10485760
+      grpc_server_max_send_msg_size: 10485760
+
+    compactor:
+      compaction:
+        compaction_window: 1h
+        max_compaction_objects: 1000000
+        block_retention: 336h
+        compacted_block_retention: 10m
+        flush_size_bytes: 5242880
+
+    distributor:
+      receivers:
+        jaeger:
+          protocols:
+            thrift_compact:
+              endpoint: 0.0.0.0:6831
+            thrift_binary:
+              endpoint: 0.0.0.0:6832
+            thrift_http:
+              endpoint: 0.0.0.0:14268
+            grpc:
+              endpoint: 0.0.0.0:14250
+        zipkin:
+          endpoint: 0.0.0.0:9411
+        otlp:
+          protocols:
+            http:
+              endpoint: 0.0.0.0:55681
+            grpc:
+              endpoint: 0.0.0.0:4317
+        opencensus:
+          endpoint: 0.0.0.0:55678
+
+    ingester:
+      trace_idle_period: 10s
+      max_block_bytes: 100
+      #traces_per_block: 100
+      max_block_duration: 5m
+
+    querier:
+      frontend_worker:
+        frontend_address: 127.0.0.1:9095
+
+    storage:
+      trace:
+        backend: s3
+        block:
+          bloom_filter_false_positive: .05
+          index_downsample_bytes: 10
+          encoding: lz4-64k
+        s3:
+          access_key: admin
+          bucket: tracing
+          endpoint: 172.31.14.138:9000
+          insecure: true
+          secret_key: admin2675
+        wal:
+          path: /var/tempo/wal
+        pool:
+          max_workers: 100
+          queue_depth: 10000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/name: tempo
+  name: tempo-query
+data:
+  tempo-query.yaml: |
+    backend: tempo:3100
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/name: tempo
+  name: tempo
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: tempo
+      app.kubernetes.io/name: tempo
+  serviceName: tempo-headless
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/instance: tempo
+        app.kubernetes.io/name: tempo
+    spec:
+      containers:
+      - args:
+        - -config.file=/conf/tempo.yaml
+        - -mem-ballast-size-mbs=1024
+        image: grafana/tempo:1.0.0
+        imagePullPolicy: IfNotPresent
+        name: tempo
+        ports:
+        - containerPort: 3100
+          name: prom-metrics
+          protocol: TCP
+        - containerPort: 6831
+          name: jaeger-thrift-c
+          protocol: UDP
+        - containerPort: 6832
+          name: jaeger-thrift-b
+          protocol: UDP
+        - containerPort: 14268
+          name: jaeger-thrift-h
+          protocol: TCP
+        - containerPort: 14250
+          name: jaeger-grpc
+          protocol: TCP
+        - containerPort: 9411
+          name: zipkin
+          protocol: TCP
+        - containerPort: 55680
+          name: otlp-legacy
+          protocol: TCP
+        - containerPort: 4317
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 55681
+          name: otlp-http
+          protocol: TCP
+        - containerPort: 55678
+          name: opencensus
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /conf
+          name: tempo-conf
+      - args:
+        - --query.base-path=/
+        - --grpc-storage-plugin.configuration-file=/conf/tempo-query.yaml
+        image: grafana/tempo-query:1.0.0
+        imagePullPolicy: IfNotPresent
+        name: tempo-query
+        ports:
+        - containerPort: 16686
+          name: jaeger-ui
+          protocol: TCP
+        - containerPort: 16687
+          name: jaeger-metrics
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /conf
+          name: tempo-query-conf
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: tempo
+      serviceAccountName: tempo
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: tempo-query
+        name: tempo-query-conf
+      - configMap:
+          defaultMode: 420
+          name: tempo
+        name: tempo-conf
+  updateStrategy:
+    type: RollingUpdate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/name: tempo
+  name: tempo
+spec:
+  ports:
+  - name: tempo-prom-metrics
+    port: 3100
+    protocol: TCP
+    targetPort: 3100
+  - name: tempo-query-jaeger-ui
+    port: 16686
+    protocol: TCP
+    targetPort: 16686
+  - name: tempo-jaeger-thrift-compact
+    port: 6831
+    protocol: UDP
+    targetPort: 6831
+  - name: tempo-jaeger-thrift-binary
+    port: 6832
+    protocol: UDP
+    targetPort: 6832
+  - name: tempo-jaeger-thrift-http
+    port: 14268
+    protocol: TCP
+    targetPort: 14268
+  - name: tempo-jaeger-grpc
+    port: 14250
+    protocol: TCP
+    targetPort: 14250
+  - name: tempo-zipkin
+    port: 9411
+    protocol: TCP
+    targetPort: 9411
+  - name: tempo-otlp-legacy
+    port: 55680
+    protocol: TCP
+    targetPort: 55680
+  - name: tempo-otlp-http
+    port: 55681
+    protocol: TCP
+    targetPort: 55681
+  - name: tempo-otlp-grpc
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: tempo-opencensus
+    port: 55678
+    protocol: TCP
+    targetPort: 55678
+  selector:
+    app.kubernetes.io/instance: tempo
+    app.kubernetes.io/name: tempo
+  sessionAffinity: None
+  type: ClusterIP

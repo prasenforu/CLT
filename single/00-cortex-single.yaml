@@ -1,0 +1,242 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cortex
+  namespace: monitoring
+data:
+  cortex.yaml: |-
+    # Disable the requirement that every request to Cortex has a
+    # X-Scope-OrgID header. `fake` will be substituted in instead.
+    # https://github.com/cortexproject/cortex/issues/3401#issuecomment-864033508
+    auth_enabled: false
+
+    server:
+      grpc_server_max_concurrent_streams: 1000
+      grpc_server_max_recv_msg_size: 104857600
+      grpc_server_max_send_msg_size: 104857600
+      http_listen_port: 9009
+
+    distributor:
+      pool:
+        health_check_ingesters: true
+      shard_by_all_labels: true
+
+    ingester:
+      lifecycler:
+        final_sleep: 0s
+        join_after: 0s
+        num_tokens: 512
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+
+    ingester_client:
+      grpc_client_config:
+        max_recv_msg_size: 104857600
+        max_send_msg_size: 104857600
+        grpc_compression: gzip
+
+    storage:
+      engine: blocks
+
+    blocks_storage:
+      backend: s3
+      s3:
+        bucket_name: monitoring
+        endpoint: 172.31.14.138:9000
+        access_key_id: admin
+        secret_access_key: admin2675
+        insecure: true
+      tsdb:
+        dir: /data/cortex/tsdb
+        ship_interval: 2m
+        block_ranges_period: [ 10m ]       # Default is 2h (production) for testing kept 10m (will create lot of tiny blocks, generate pressure on other components)
+        retention_period: 3h
+      bucket_store:
+        sync_dir: /data/cortex/tsdb-sync
+        consistency_delay: 5s
+
+    frontend:
+      log_queries_longer_than: 10s
+
+    compactor:
+      compaction_interval: 30s
+      data_dir: /data/cortex-compactor
+      sharding_ring:
+        kvstore:
+          store: inmemory
+
+    querier:
+      active_query_tracker_dir: /data/cortex/querier
+      query_ingesters_within: 12h
+
+    # https://github.com/cortexproject/cortex/issues/3401#issuecomment-864033508
+    ruler:
+      alertmanager_url: http://alertmanager:9093/
+      enable_alertmanager_discovery: false
+      enable_alertmanager_v2: true
+      enable_api: true
+      external_url: https://alerts.example.org/
+      rule_path: /rules
+      storage:
+        local:
+          directory: /etc/cortex/rules/fake
+        type: local
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cortex-ruler-configmap
+data:
+  rules.yml: |-
+    groups:
+      - name: "centralmonitoring"
+        rules:
+          - alert: "PrometheusDown"
+            annotations:
+              message: Prometheus replica in cluster {{$labels.cluster}} has disappeared.
+            expr: sum(up{cluster!="", instance=~"prometheus.*", job="kubernetes-service-endpoints"}) by (cluster) < 3
+            for: 15s
+            labels:
+              severity: critical
+              category: metrics
+          - alert: "TooManyPods"
+            annotations:
+              message: Too many pods in cluster {{$labels.cluster}} on node {{$labels.instance}}
+            expr: sum by(cluster,instance) (kubelet_running_pods{cluster!="",instance!=""}) > 5
+            for: 15s
+            labels:
+              severity: warning
+              category: metrics
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: cortex
+  name: cortex
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: cortex
+  name: cortex
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: cortex
+  serviceName: cortex-headless
+  template:
+    metadata:
+      labels:
+        app: cortex
+    spec:
+      containers:
+      - args:
+        - -config.file=/etc/cortex/cortex.yaml
+        image: quay.io/cortexproject/cortex:v1.9.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /ready
+            port: http-metrics
+            scheme: HTTP
+          initialDelaySeconds: 45
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: cortex
+        ports:
+        - containerPort: 9009
+          name: http-metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /ready
+            port: http-metrics
+            scheme: HTTP
+          initialDelaySeconds: 45
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        securityContext:
+          procMount: Default
+          readOnlyRootFilesystem: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/cortex
+          name: config
+        - mountPath: /etc/cortex/rules/fake
+          name: alert
+        - mountPath: /data
+          name: storage
+        - mountPath: /rules
+          name: temp
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      serviceAccount: cortex
+      serviceAccountName: cortex
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: config
+        configMap:
+          name: cortex
+      - name: alert
+        configMap:
+          name: cortex-ruler-configmap
+      - emptyDir: {}
+        name: storage
+      - emptyDir: {}
+        name: temp
+  updateStrategy:
+    type: RollingUpdate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cortex
+  name: cortex
+spec:
+  ports:
+  - name: http-metrics
+    port: 9009
+    protocol: TCP
+    targetPort: http-metrics
+  selector:
+    app: cortex
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cortex
+  name: cortex-headless
+spec:
+  clusterIP: None
+  ports:
+  - name: http-metrics
+    port: 9009
+    protocol: TCP
+    targetPort: http-metrics
+  selector:
+    app: cortex
+  sessionAffinity: None
+  type: ClusterIP
