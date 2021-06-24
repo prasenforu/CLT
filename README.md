@@ -4,7 +4,7 @@ Observability for Multi Cluster Container Platform
 Kubernetes multi-cluster observability using Cortex (Monitoring) Loki (Logging) & Tempo (Tracing).
 
 <p align="center">
-  <img src="https://github.com/cloudcafetech/observability/blob/main/observability-mono.png">
+  <img src="https://github.com/prasenforu/CLT/blob/main/single/observability-mono.png">
 </p>
 
 ### Quick start
