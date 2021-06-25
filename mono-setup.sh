@@ -133,6 +133,10 @@ kubectl create secret tls nip-tls --cert=nip.crt --key=nip.key -n monitoring
 sed -i "s/kube-one/$CLUSTER/g" CLT/single/agent.yaml
 kubectl create -f CLT/single/. -n monitoring
 
+# Demo
+kubectl create ns hotrod
+kubectl create -f CLT/demo/hotrod.yaml -n hotrod
+
 # Install Krew
 set -x; cd "$(mktemp -d)" &&
   curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew.{tar.gz,yaml}" &&
