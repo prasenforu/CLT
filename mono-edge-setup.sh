@@ -96,8 +96,9 @@ sed -i "s/kube-one/$CLUSTER/g" CLT/single/agent.yaml
 kubectl create -f CLT/single/agent.yaml -n monitoring
 
 # Demo App Deployment
+kubectl create ns hotrod
+kubectl create -f CLT/demo/hotrod.yaml -n hotrod
 kubectl create ns demo
-kubectl create -f CLT/single/hotrod.yaml -n hotrod
 kubectl create -f CLT/demo/mongo-employee.yaml -n demo
 
 # Install Krew
