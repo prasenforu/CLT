@@ -78,7 +78,7 @@ data:
       external_labels:
         cluster: kube-edge1
     remote_write:
-    - url: http://cortex.172.31.41.149.nip.io/api/prom/push
+    - url: http://cortex.172.31.14.138.nip.io/api/prom/push
     alerting:
       alertmanagers:
       - kubernetes_sd_configs:
