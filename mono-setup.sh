@@ -2,6 +2,8 @@
 # Install KIND KUBERNETES 
 
 CLUSTER=kube-central
+PUB=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
+MinIO=`ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1`
 HIP=`ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1`
 
 # Install packages
@@ -43,8 +45,6 @@ docker run -d -p 9000:9000 --restart=always --name minio \
   -v /root/minio/config:/root/.minio \
   minio/minio server /data
 
-
-MinIO=`ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1`
 wget https://dl.min.io/client/mc/release/linux-amd64/mc; chmod +x mc; mv -v mc /usr/local/bin/mc
 mc config host add minio http://$MinIO:9000 admin admin2675 --insecure
 mc mb minio/monitoring --insecure
@@ -118,10 +118,9 @@ EOF
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes -config req.conf -keyout nip.key -out nip.crt
 
 # Modify files for setup observability
-HIP=`ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1`
-PUB=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
 find ./CLT/ -type f -exec sed -i -e "s/172.31.14.138/$HIP/g" {} \;
 find ./CLT/ -type f -exec sed -i -e "s/3.16.154.209/$PUB/g" {} \;
+find ./CLT/ -type f -exec sed -i -e "s/kube-one/$CLUSTER/g" {} \;
 
 # Create namespaces
 kubectl create ns monitoring
@@ -130,8 +129,13 @@ kubectl create ns monitoring
 kubectl create secret tls nip-tls --cert=nip.crt --key=nip.key -n monitoring
 
 # Deployment Observability
-sed -i "s/kube-one/$CLUSTER/g" CLT/single/agent.yaml
 kubectl create -f CLT/single/. -n monitoring
+
+# Client Setup
+kubectl create -f CLT/client/agent.yaml -n monitoring
+kubectl create -f CLT/client/prometheus.yaml -n monitoring
+kubectl create -f CLT/client/promtail.yaml -n monitoring
+#kubectl create -f CLT/client/fluent-bit-ds.yaml -n monitoring
 
 # Demo
 kubectl create ns hotrod
