@@ -1,9 +1,10 @@
 #!/bin/bash
 # Install KIND Edge KUBERNETES 
 
+PUB=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
 HIP=`ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1`
 CLUSTER=$1
-#CLUSTER=kube-one
+#CLUSTER=kube-edge1
 # Central Cluster Ingress IP
 #INGIP=172.31.25.28
 
@@ -84,16 +85,18 @@ sleep 15
 kubectl delete job.batch/ingress-nginx-admission-patch -n kube-router
 
 # Files edit
-PUB=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
 find ./CLT/ -type f -exec sed -i -e "s/172.31.14.138/$INGIP/g" {} \;
 find ./CLT/ -type f -exec sed -i -e "s/3.16.154.209/$PUB/g" {} \;
+find ./CLT/ -type f -exec sed -i -e "s/kube-one/$CLUSTER/g" {} \;
 
 # Agent Deployment
 kubectl create ns monitoring
 kubectl create -f CLT/single/02-kube-state-metrics.yaml -n monitoring
 kubectl create -f CLT/single/02-node-exporter.yaml -n monitoring
-sed -i "s/kube-one/$CLUSTER/g" CLT/single/agent.yaml
-kubectl create -f CLT/single/agent.yaml -n monitoring
+kubectl create -f CLT/client/agent.yaml -n monitoring
+kubectl create -f CLT/client/prometheus.yaml -n monitoring
+kubectl create -f CLT/client/promtail.yaml -n monitoring
+#kubectl create -f CLT/client/fluent-bit-ds.yaml -n monitoring
 
 # Demo App Deployment
 kubectl create ns hotrod
