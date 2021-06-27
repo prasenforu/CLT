@@ -41,8 +41,9 @@ metadata:
 data:
   promtail.yml: |
     clients:
-      - external_labels: {}
-        url: http://:@loki.logging.svc.cluster.local:3100/loki/api/v1/push
+      - external_labels:
+          cluster: kube-one
+        url: http://loki.172.31.14.138.nip.io/api/prom/push
     scrape_configs:
       - job_name: kubernetes-pods-name
         kubernetes_sd_configs:
@@ -58,6 +59,9 @@ data:
           - labels:
                 level: ""
         relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace]
+            regex: default|kube-system
+            action: drop           
           - source_labels:
               - __meta_kubernetes_pod_label_name
             target_label: __service__
@@ -109,6 +113,9 @@ data:
           - labels:
                 level: ""
         relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace]
+            regex: default|kube-system
+            action: drop        
           - action: drop
             regex: .+
             source_labels:
@@ -164,6 +171,9 @@ data:
           - labels:
                 level: ""
         relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace]
+            regex: default|kube-system
+            action: drop        
           - action: drop
             regex: .+
             separator: ""
@@ -225,6 +235,9 @@ data:
           - labels:
                 level: ""
         relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace]
+            regex: default|kube-system
+            action: drop        
           - action: drop
             regex: .+
             separator: ""
@@ -288,6 +301,9 @@ data:
           - labels:
                 level: ""
         relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace]
+            regex: default|kube-system
+            action: drop        
           - action: drop
             regex: ""
             source_labels:
