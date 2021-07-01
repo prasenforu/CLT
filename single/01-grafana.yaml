@@ -34,6 +34,8 @@ data:
     plugins = /var/lib/grafana/plugins
     [users]
     default_theme = light    
+    [security]
+    allow_embedding=true    
 ---
 apiVersion: v1
 kind: ConfigMap
