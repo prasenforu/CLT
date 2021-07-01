@@ -104,6 +104,11 @@ kubectl create -f CLT/demo/hotrod.yaml -n hotrod
 kubectl create ns demo
 kubectl create -f CLT/demo/mongo-employee.yaml -n demo
 
+# Setup Velero Backup
+wget https://raw.githubusercontent.com/cloudcafetech/kubesetup/master/misc/backup-setup.sh
+chmod +x ./backup-setup.sh
+#./backup-setup.sh
+
 # Install Krew
 set -x; cd "$(mktemp -d)" &&
   curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew.{tar.gz,yaml}" &&
