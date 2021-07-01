@@ -141,6 +141,11 @@ kubectl create -f CLT/client/promtail.yaml -n monitoring
 kubectl create ns hotrod
 kubectl create -f CLT/demo/hotrod.yaml -n hotrod
 
+# Setup Velero Backup
+wget https://raw.githubusercontent.com/cloudcafetech/kubesetup/master/misc/backup-setup.sh
+chmod +x ./backup-setup.sh
+#./backup-setup.sh
+
 # Install Krew
 set -x; cd "$(mktemp -d)" &&
   curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew.{tar.gz,yaml}" &&
