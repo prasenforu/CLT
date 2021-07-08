@@ -57,10 +57,9 @@ git clone https://github.com/prasenforu/CLT.git
 # Kubernetes Cluster Creation
 
 HIP=`ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1`
-cat <<EOF > kind-kube-install.yaml
+cat <<EOF > kind-kube-$CLUSTER.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: $CLUSTER
 networking:
   apiServerPort: 19091
   apiServerAddress: $HIP
@@ -76,16 +75,7 @@ nodes:
     containerPath: /var/run/docker.sock
 - role: worker
 EOF
-kind create cluster --config kind-kube-install.yaml
-
-# Waiting Cluster UP
-echo "Waiting Cluster UP ..."
-kubectl  wait --for=condition=Ready node --all --timeout 60s
-
-echo "Waiting for Cluster PODs are ready .."
-kubectl wait pods/etcd-$CLUSTER-control-plane --for=condition=Ready --timeout=5m -n kube-system
-kubectl wait pods/kube-scheduler-$CLUSTER-control-plane --for=condition=Ready --timeout=5m -n kube-system
-kubectl wait pods/kube-apiserver-$CLUSTER-control-plane --for=condition=Ready --timeout=5m -n kube-system
+kind create cluster --name $CLUSTER --kubeconfig $CLUSTER-kubeconf --config kind-kube-$CLUSTER.yaml --wait 2m
 
 # Setup Helm Chart
 curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 > get_helm.sh
@@ -93,11 +83,10 @@ chmod 700 get_helm.sh
 ./get_helm.sh
 
 # Install Ingress
+cp $CLUSTER-kubeconf .kube/config
+export KUBECONFIG=$CLUSTER-kubeconf
 kubectl apply -f https://raw.githubusercontent.com/prasenforu/CLT/main/kube-kind-ingress.yaml
-kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
-kubectl delete ValidatingWebhookConfiguration ingress-nginx-admission
 sleep 15
-kubectl delete job.batch/ingress-nginx-admission-patch -n kube-router
 
 # Setup Certificate & Password for Ingress
 cat <<EOF > req.conf
