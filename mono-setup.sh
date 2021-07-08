@@ -175,6 +175,7 @@ echo "Setting Ingress for $CLUSTER0"
 export KUBECONFIG=$CLUSTER0-kubeconf
 kubectl apply -f kube-kind-ingress-$CLUSTER0.yaml
 sleep 15
+kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
 
 # Setup Certificate & Password for Ingress
 cat <<EOF > req.conf
@@ -222,6 +223,7 @@ echo "Setting Ingress for $CLUSTER1"
 export KUBECONFIG=$CLUSTER1-kubeconf
 kubectl apply -f kube-kind-ingress-$CLUSTER1.yaml
 sleep 15
+kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
 find ./CLT/ -type f -exec sed -i -e "s/$CLUSTER0/$CLUSTER1/g" {} \;
 
 # Agent Deployment
