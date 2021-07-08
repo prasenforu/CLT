@@ -79,10 +79,8 @@ chmod 700 get_helm.sh
 
 # Install Ingress
 kubectl apply -f https://raw.githubusercontent.com/prasenforu/CLT/main/kube-kind-ingress.yaml
-kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
-kubectl delete ValidatingWebhookConfiguration ingress-nginx-admission
 sleep 15
-kubectl delete job.batch/ingress-nginx-admission-patch -n kube-router
+kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
 
 # Files edit
 find ./CLT/ -type f -exec sed -i -e "s/172.31.14.138/$INGIP/g" {} \;
