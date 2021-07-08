@@ -9,11 +9,4 @@ Kubernetes multi-cluster observability using Cortex (Monitoring) Loki (Logging) 
 
 ### Quick start
 
-- Central
-
 ```curl -s https://raw.githubusercontent.com/prasenforu/CLT/main/mono-setup.sh | bash```
-
-- Edge
-
-```curl -s https://raw.githubusercontent.com/prasenforu/CLT/main/mono-edge-setup.sh | INGIP=<Central Host IP> bash -s <Cluster Name>```
-
