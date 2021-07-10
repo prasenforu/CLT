@@ -263,6 +263,7 @@ export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 kubectl krew install modify-secret
 kubectl krew install ctx
 kubectl krew install ns
+kubectl krew install cost
 
 echo 'export PATH="${PATH}:${HOME}/.krew/bin"' >> /root/.bash_profile
 exit
