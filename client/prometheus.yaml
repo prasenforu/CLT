@@ -462,7 +462,7 @@ data:
       metrics_path: /metrics
       scheme: http
       static_configs:
-      - targets: ['cost-model.monitoring.svc.cluster.local:9003']          
+      - targets: ['kubecost-cost-analyzer.kubecost.svc.cluster.local:9003']          
 ---
 kind: Service
 apiVersion: v1
