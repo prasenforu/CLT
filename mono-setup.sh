@@ -218,6 +218,8 @@ kubectl create -f CLT/client/promtail.yaml -n monitoring
 # Demo
 kubectl create ns hotrod
 kubectl create -f CLT/demo/hotrod.yaml -n hotrod
+kubectl create ns sample
+kubectl create -f CLT/demo/mongo-employee.yaml -n sample
 
 echo "Setting Ingress for $CLUSTER1"
 export KUBECONFIG=$CLUSTER1-kubeconf
